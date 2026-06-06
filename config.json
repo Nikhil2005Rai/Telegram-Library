@@ -4,6 +4,16 @@
       "source": -1003500551621,
       "destination": -1003368170139,
       "enabled": true
+    },
+    {
+      "source": -1003064327031,
+      "destination": -1003767322856,
+      "enabled": true
+    },
+    {
+      "source": -1003973750242,
+      "destination": -1004226247659,
+      "enabled": true
     }
   ]
 }
