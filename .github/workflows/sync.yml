@@ -1,5 +1,9 @@
 name: Telegram Sync
 
+concurrency:
+  group: telegram-sync
+  cancel-in-progress: false
+
 on:
   schedule:
     - cron: '0 0 * * *'
