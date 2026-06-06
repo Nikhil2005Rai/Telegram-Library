@@ -17,8 +17,6 @@ sessions/
 *.session
 *.session-journal
 
-# Runtime data
-progress.json
 
 # OS files
 .DS_Store

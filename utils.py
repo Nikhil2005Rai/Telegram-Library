@@ -5,7 +5,6 @@ import os
 
 load_dotenv()
 
-
 # ============================================================
 # Paths
 # ============================================================
@@ -16,8 +15,14 @@ CONFIG_FILE = BASE_DIR / "config.json"
 PROGRESS_FILE = BASE_DIR / "progress.json"
 SESSION_FILE = BASE_DIR / "sessions" / "session"
 
+# ============================================================
+# Environment Variables
+# ============================================================
+
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
+
+SESSION_STRING = os.getenv("SESSION_STRING")
 
 # ============================================================
 # Config Helpers

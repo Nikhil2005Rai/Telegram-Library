@@ -4,18 +4,19 @@ from utils import (
     save_progress,
     SESSION_FILE,
     API_ID,
-    API_HASH
+    API_HASH,
+    SESSION_STRING
 )
 
 import asyncio
 from telethon import TelegramClient
 from telethon.tl.patched import MessageService
+from telethon.sessions import StringSession
 
 
 # ============================================================
 # Sync Logic
 # ============================================================
-
 
 async def sync_pair(client, source_id, dest_id, progress):
     source = await client.get_entity(source_id)
@@ -98,18 +99,23 @@ async def sync_pair(client, source_id, dest_id, progress):
 # Main
 # ============================================================
 
-
 async def main():
     config = load_config()
-
 
     SESSION_FILE.parent.mkdir(
         parents=True,
         exist_ok=True
     )
 
+    if SESSION_STRING:
+        session = StringSession(SESSION_STRING)
+        print("Using SESSION_STRING")
+    else:
+        session = str(SESSION_FILE)
+        print("Using local session file")
+
     client = TelegramClient(
-        str(SESSION_FILE),
+        session,
         API_ID,
         API_HASH
     )
