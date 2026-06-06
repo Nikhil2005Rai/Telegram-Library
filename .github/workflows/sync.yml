@@ -45,6 +45,8 @@ jobs:
 
           git add progress.json
 
-          git diff --cached --quiet || git commit -m "Update progress"
-
-          git push
+          if ! git diff --cached --quiet; then
+            git commit -m "Update progress"
+            git pull --rebase origin main
+            git push origin main
+          fi
