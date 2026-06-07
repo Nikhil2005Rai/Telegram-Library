@@ -9,9 +9,17 @@ from utils import (
 )
 
 import asyncio
+import random
+
 from telethon import TelegramClient
-from telethon.tl.patched import MessageService
 from telethon.sessions import StringSession
+from telethon.tl.patched import MessageService
+from telethon.errors import FloodWaitError
+
+
+BATCH_SIZE = 50
+MIN_DELAY = 3
+MAX_DELAY = 5
 
 
 # ============================================================
@@ -19,6 +27,7 @@ from telethon.sessions import StringSession
 # ============================================================
 
 async def sync_pair(client, source_id, dest_id, progress):
+
     source = await client.get_entity(source_id)
     dest = await client.get_entity(dest_id)
 
@@ -46,52 +55,109 @@ async def sync_pair(client, source_id, dest_id, progress):
 
     messages.reverse()
 
-    total = len(messages)
+    forwardable = []
 
-    print(f"Found {total} new messages")
+    for msg in messages:
 
-    for index, msg in enumerate(messages, start=1):
-
-        try:
-            # Skip Telegram service messages
-            if isinstance(msg, MessageService):
-                progress[source_key] = msg.id
-
-                if index % 10 == 0:
-                    save_progress(progress)
-
-                continue
-
-            await client.forward_messages(
-                dest,
-                msg
-            )
+        if isinstance(msg, MessageService):
 
             progress[source_key] = msg.id
 
-            # Save every 10 messages
-            if index % 10 == 0:
+            continue
+
+        forwardable.append(msg)
+
+    total = len(forwardable)
+
+    if total == 0:
+        save_progress(progress)
+        print("Only service messages found.")
+        return
+
+    print(f"Found {total} new messages")
+
+    for start in range(
+        0,
+        total,
+        BATCH_SIZE
+    ):
+
+        batch = forwardable[
+            start:start + BATCH_SIZE
+        ]
+
+        while True:
+
+            try:
+
+                await client.forward_messages(
+                    dest,
+                    batch
+                )
+
+                progress[source_key] = (
+                    batch[-1].id
+                )
+
                 save_progress(progress)
 
-            print(
-                f"[{index}/{total}] Forwarded Message ID: {msg.id}"
-            )
+                current = min(
+                    start + len(batch),
+                    total
+                )
 
-            # Helps avoid Telegram flood limits
-            await asyncio.sleep(0.2)
+                print(
+                    f"[{current}/{total}] "
+                    f"Forwarded batch of "
+                    f"{len(batch)} messages"
+                )
 
-        except Exception as e:
-            print(
-                f"[{index}/{total}] Failed Message ID: {msg.id}"
-            )
-            print(f"Reason: {e}")
+                await asyncio.sleep(
+                    random.uniform(
+                        MIN_DELAY,
+                        MAX_DELAY
+                    )
+                )
 
-    # Final save
+                break
+
+            except FloodWaitError as e:
+
+                wait_time = e.seconds + 10
+
+                print(
+                    "\nFloodWait detected"
+                )
+                print(
+                    f"Sleeping for "
+                    f"{wait_time} seconds..."
+                )
+
+                save_progress(progress)
+
+                await asyncio.sleep(
+                    wait_time
+                )
+
+            except Exception as e:
+
+                print(
+                    "\nBatch failed."
+                )
+                print(f"Reason: {e}")
+
+                print(
+                    "Retrying in 15 seconds..."
+                )
+
+                await asyncio.sleep(15)
+
     save_progress(progress)
 
     print("\nPair Complete!")
     print(
-        f"Latest Synced ID: {progress[source_key]}"
+        f"Latest Synced ID: "
+        f"{progress[source_key]}"
     )
 
 
@@ -100,6 +166,7 @@ async def sync_pair(client, source_id, dest_id, progress):
 # ============================================================
 
 async def main():
+
     config = load_config()
 
     SESSION_FILE.parent.mkdir(
@@ -108,11 +175,24 @@ async def main():
     )
 
     if SESSION_STRING:
-        session = StringSession(SESSION_STRING)
-        print("Using SESSION_STRING")
+
+        session = StringSession(
+            SESSION_STRING
+        )
+
+        print(
+            "Using SESSION_STRING"
+        )
+
     else:
-        session = str(SESSION_FILE)
-        print("Using local session file")
+
+        session = str(
+            SESSION_FILE
+        )
+
+        print(
+            "Using local session file"
+        )
 
     client = TelegramClient(
         session,
@@ -125,9 +205,13 @@ async def main():
     progress = load_progress()
 
     try:
+
         for pair in config["pairs"]:
 
-            if not pair.get("enabled", True):
+            if not pair.get(
+                "enabled",
+                True
+            ):
                 continue
 
             await sync_pair(
@@ -138,6 +222,7 @@ async def main():
             )
 
     finally:
+
         await client.disconnect()
 
 
