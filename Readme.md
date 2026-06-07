@@ -1,63 +1,81 @@
 # Telegram Library Sync
 
-A Telegram channel synchronization tool built with Python and Telethon.
+A small Python utility for mirroring Telegram channel messages from one or more source channels into destination channels.
 
-The application automatically mirrors messages from one or more source channels to destination channels while preserving chronological order and tracking synchronization progress.
+The project uses [Telethon](https://docs.telethon.dev/) to connect to Telegram, forwards only messages that have not been synced yet, and stores local progress so a later run can continue where the previous run stopped.
 
----
+## Features
 
-# Features
+- Mirror messages from Telegram source channels to archive or backup channels.
+- Manage multiple source-to-destination pairs.
+- Enable or disable pairs without deleting them.
+- Resume from the last synced message ID after an interruption.
+- Preserve chronological order by forwarding older new messages before newer ones.
+- Forward normal Telegram messages, including media and documents supported by Telethon forwarding.
+- Skip Telegram service messages while still advancing progress.
+- Use either a local Telethon session file or a `SESSION_STRING`.
 
-* Sync messages from Telegram channels to backup/archive channels
-* Support multiple source → destination channel pairs
-* Resume from the last synced message after interruption
-* Progress tracking using local storage
-* Enable or disable channel pairs without deleting them
-* Add, list, remove, and manage channel pairs through CLI tools
-* Automatic chronological forwarding (oldest → newest)
-* Support for text messages, media, documents, and forwarded content
-* Session persistence using Telethon session files
-
----
-
-# Project Structure
+## Project Structure
 
 ```text
 telegram-library/
-│
-├── sync.py
-├── add_pair.py
-├── list_pairs.py
-├── remove_pair.py
-├── toggle_pair.py
-├── utils.py
-│
-├── config.json
-├── progress.json
-├── requirements.txt
-│
-└── sessions/
-    └── session.session
+|-- sync.py               # Main sync runner
+|-- add_pair.py           # Add a source/destination pair
+|-- list_pairs.py         # Show configured pairs
+|-- remove_pair.py        # Remove a configured pair
+|-- toggle_pair.py        # Enable or disable a pair
+|-- teleGetChannelId.py   # Print visible Telegram dialog IDs
+|-- stringSession.py      # Generate a Telethon string session
+|-- utils.py              # Shared config, progress, and session helpers
+|-- config.json           # Channel pair configuration
+|-- progress.json         # Last synced message ID per source channel
+|-- requirements.txt      # Python dependencies
+`-- sessions/             # Local Telethon session files
 ```
 
----
+## Requirements
 
-# How It Works
+- Python 3.10 or newer
+- A Telegram account
+- Telegram API credentials from <https://my.telegram.org/apps>
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Configuration
 
-All source and destination channel mappings are stored in:
+### 1. Create `.env`
 
-```text
-config.json
+The application reads Telegram credentials from environment variables. Create a `.env` file in the project root:
+
+```env
+API_ID=12345678
+API_HASH=your_api_hash_here
 ```
 
-Example:
+You can also use a Telethon string session instead of a local session file:
+
+```env
+API_ID=12345678
+API_HASH=your_api_hash_here
+SESSION_STRING=your_string_session_here
+```
+
+If `SESSION_STRING` is not set, the app creates and reuses a local session at:
+
+```text
+sessions/session.session
+```
+
+### 2. Configure channel pairs
+
+Channel pairs are stored in `config.json`:
 
 ```json
 {
-  "api_id": 12345678,
-  "api_hash": "your_api_hash",
   "pairs": [
     {
       "source": -1001111111111,
@@ -68,239 +86,65 @@ Example:
 }
 ```
 
-Each pair defines:
+Each pair contains:
 
-* Source channel ID
-* Destination channel ID
-* Whether synchronization is enabled
+- `source`: Telegram channel, group, or chat ID to read from.
+- `destination`: Telegram channel, group, or chat ID to forward into.
+- `enabled`: whether the sync runner should process the pair.
 
----
+Use the helper scripts below instead of editing `config.json` by hand when possible.
 
-## Progress Tracking
+## First Login
 
-Synchronization progress is stored in:
-
-```text
-progress.json
-```
-
-Example:
-
-```json
-{
-  "-1001111111111": 1875
-}
-```
-
-This means the source channel has been synchronized up to message ID 1875.
-
-When the application runs again, only messages newer than that ID are processed.
-
----
-
-## Synchronization Process
-
-The sync engine performs the following steps:
-
-1. Load configuration from `config.json`
-2. Load synchronization progress from `progress.json`
-3. Connect to Telegram using Telethon
-4. Iterate through all enabled channel pairs
-5. Retrieve messages newer than the last synchronized ID
-6. Reverse message order to maintain chronology
-7. Forward messages to the destination channel
-8. Update progress information
-9. Save progress periodically
-10. Disconnect from Telegram
-
----
-
-# Installation
-
-## Clone the Project
-
-```bash
-git clone <repository-url>
-cd telegram-library
-```
-
----
-
-## Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## Create Telegram API Credentials
-
-Visit:
-
-https://my.telegram.org/apps
-
-Create an application and obtain:
-
-* API ID
-* API Hash
-
----
-
-## Configure Credentials
-
-Edit:
-
-```text
-config.json
-```
-
-Example:
-
-```json
-{
-  "api_id": 12345678,
-  "api_hash": "your_api_hash",
-  "pairs": []
-}
-```
-
----
-
-# First Login
-
-Run:
+Run the sync script:
 
 ```bash
 python sync.py
 ```
 
-Telethon will ask for:
+On the first local-session run, Telethon may ask for your phone number, login code, and two-step verification password if your account requires one. After login, future runs reuse the saved session.
 
-```text
-Phone Number
-Verification Code
+## Finding Channel IDs
+
+Run:
+
+```bash
+python teleGetChannelId.py
 ```
 
-After successful authentication, a session file will be created:
+The script prints the names and IDs of dialogs visible to the authenticated account. Telegram channel IDs commonly look like this:
 
 ```text
-sessions/session.session
+-1003500551621
 ```
 
-Future executions will use the saved session automatically.
+Make sure the authenticated account has permission to read from the source and post or forward into the destination.
 
----
+## Usage
 
-# Finding Channel IDs
-
-Use a utility script or Telethon to obtain channel IDs.
-
-Example format:
-
-```text
-Source Channel      -> -1003500551621
-Destination Channel -> -1003368170139
-```
-
-These IDs are used when creating synchronization pairs.
-
----
-
-# Usage
-
-## Add a Pair
+Add a pair:
 
 ```bash
 python add_pair.py
 ```
 
-Example:
-
-```text
-Source Channel ID:
--1003500551621
-
-Destination Channel ID:
--1003368170139
-```
-
----
-
-## List All Pairs
+List configured pairs:
 
 ```bash
 python list_pairs.py
 ```
 
-Displays:
-
-* Source channel
-* Destination channel
-* Enabled/disabled status
-
----
-
-## Remove a Pair
-
-```bash
-python remove_pair.py
-```
-
-Select the pair number to delete.
-
----
-
-## Enable or Disable a Pair
+Enable or disable a pair:
 
 ```bash
 python toggle_pair.py
 ```
 
-Select the pair number to toggle.
-
-Disabled pairs are skipped during synchronization.
-
----
-
-## Run Synchronization
+Remove a pair:
 
 ```bash
-python sync.py
+python remove_pair.py
 ```
-
-The application will:
-
-* Read enabled pairs
-* Synchronize new messages only
-* Update progress
-* Exit when complete
-
----
-
-# Example Workflow
-
-## Step 1
-
-Add a synchronization pair:
-
-```bash
-python add_pair.py
-```
-
----
-
-## Step 2
-
-Verify the pair:
-
-```bash
-python list_pairs.py
-```
-
----
-
-## Step 3
 
 Run synchronization:
 
@@ -308,86 +152,85 @@ Run synchronization:
 python sync.py
 ```
 
----
+During a sync run, the app:
 
-## Step 4
+1. Loads `config.json`.
+2. Loads `progress.json`.
+3. Connects to Telegram using either `SESSION_STRING` or `sessions/session.session`.
+4. Processes each enabled pair.
+5. Reads messages newer than the last saved message ID.
+6. Reverses the fetched batch so messages forward oldest to newest.
+7. Saves progress every 10 processed messages and again at the end of each pair.
+8. Disconnects from Telegram.
 
-Run synchronization again later:
+## Progress Tracking
+
+Progress is stored in `progress.json` using the source channel ID as the key:
+
+```json
+{
+  "-1001111111111": 1875
+}
+```
+
+This means source channel `-1001111111111` has been processed through message ID `1875`. The next sync only requests messages with higher IDs.
+
+To intentionally resync a source from the beginning, stop the app and remove that source entry from `progress.json`. Be careful: doing this can duplicate forwarded messages in the destination.
+
+## String Sessions
+
+The project includes `stringSession.py` for generating a Telethon string session. A string session is useful when running the sync on a server or CI environment where you do not want to store a `.session` file.
+
+Run:
 
 ```bash
-python sync.py
+python stringSession.py
 ```
 
-Only newly posted messages will be processed.
+Then place the printed value in `.env` as `SESSION_STRING`.
 
----
+Treat string sessions like passwords. Anyone with the value can access the Telegram account session.
 
-# Progress Recovery
+## Security Notes
 
-The application is designed to recover from interruptions.
+Keep these files and values private:
 
-Example:
+- `.env`
+- `SESSION_STRING`
+- `sessions/`
+- `*.session`
+- `*.session-journal`
 
-```text
-Message 1 synced
-Message 2 synced
-Message 3 synced
-Application closed
-```
+The included `.gitignore` already excludes these local secrets and session files.
 
-Upon restart:
+## Troubleshooting
 
-```bash
-python sync.py
-```
+`TypeError` or `ValueError` while loading credentials:
 
-Synchronization resumes from the last saved position.
+- Check that `.env` exists.
+- Confirm `API_ID` is present and is a number.
+- Confirm `API_HASH` is present.
 
----
+No dialogs or channel IDs appear:
 
-# Session Files
+- Log in with the Telegram account that belongs to the target channels.
+- Confirm the account can see the channels in Telegram.
 
-The following files contain sensitive information:
+Sync finds no new messages:
 
-```text
-sessions/session.session
-config.json
-```
+- Check `progress.json`; the stored message ID may already be current.
+- Confirm the pair is enabled with `python list_pairs.py`.
+- Confirm the source ID is correct.
 
-Do not publish these files.
+Forwarding fails for a message:
 
-Recommended `.gitignore`:
+- Confirm the account has permission to post in the destination.
+- Some Telegram messages or protected content may not be forwardable.
+- Telegram flood limits can temporarily slow or block forwarding.
 
-```gitignore
-sessions/
-*.session
-*.session-journal
-progress.json
-__pycache__/
-```
+## Notes and Limitations
 
----
-
-# Requirements
-
-* Python 3.10+
-* Telethon
-
----
-
-# Future Improvements
-
-* Web dashboard using Next.js
-* Automatic scheduling
-* Channel validation
-* Statistics dashboard
-* Search and filtering
-* Notification system
-* Docker deployment
-* GitHub Actions automation
-
----
-
-# Disclaimer
-
-Use this software responsibly and ensure you comply with Telegram's Terms of Service and any applicable channel permissions or content restrictions.
+- The tool forwards messages; it does not clone channel settings, members, reactions, comments, or metadata.
+- Progress is tracked per source channel ID, not per source/destination pair. If the same source is synced to multiple destinations, they share one progress entry.
+- `progress.json` is local state. Back it up if you rely on exact resume behavior.
+- Always follow Telegram's Terms of Service and respect channel permissions, copyright, and privacy expectations.
