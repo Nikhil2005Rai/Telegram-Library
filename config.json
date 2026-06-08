@@ -24,6 +24,36 @@
       "source": -1001627944276,
       "destination": -1003943731013,
       "enabled": true
+    },
+    {
+      "source": -1003101130263,
+      "destination": -1003917119615,
+      "enabled": true
+    },
+    {
+      "source": -1003132050943,
+      "destination": -1003929990784,
+      "enabled": true
+    },
+    {
+      "source": -1003389156085,
+      "destination": -1004293159054,
+      "enabled": true
+    },
+    {
+      "source": -1003346884127,
+      "destination": -1003904122035,
+      "enabled": true
+    },
+    {
+      "source": -1002091408676,
+      "destination": -1003887581148,
+      "enabled": true
+    },
+    {
+      "source": -1002994209029,
+      "destination": -1004237016866,
+      "enabled": true
     }
   ]
 }
