@@ -300,7 +300,17 @@ async def sync_pair(
         [ChannelPair(source=source, destination=destination, enabled=True)],
         log=log,
     )
-    return results[0]
+    if results:
+        return results[0]
+
+    return SyncResult(
+        source=source,
+        destination=destination,
+        forwarded=0,
+        skipped=0,
+        failed=0,
+        latest_synced_id=get_progress().get(str(source), 0),
+    )
 
 
 async def sync_pairs(
@@ -318,7 +328,8 @@ async def sync_pairs(
                 continue
 
             result = await _sync_one_pair(client, pair, progress, log)
-            results.append(result)
+            if result is not None:
+                results.append(result)
 
     return results
 
@@ -385,11 +396,19 @@ async def _sync_one_pair(
     pair: ChannelPair,
     progress: dict[str, int],
     log: LogCallback | None,
-) -> SyncResult:
+) -> SyncResult | None:
     from telethon.tl.patched import MessageService
 
-    source = await client.get_entity(pair.source)
-    destination = await client.get_entity(pair.destination)
+    try:
+        source = await client.get_entity(pair.source)
+        destination = await client.get_entity(pair.destination)
+    except Exception as exc:  # noqa: BLE001 - reported to API caller.
+        await _emit(
+            log,
+            "warning",
+            f"Skipping pair {pair.source} -> {pair.destination}: {exc}",
+        )
+        return None
 
     source_key = str(pair.source)
     last_id = progress.get(source_key, 0)

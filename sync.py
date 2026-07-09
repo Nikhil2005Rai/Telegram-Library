@@ -27,9 +27,14 @@ MAX_DELAY = 5
 # ============================================================
 
 async def sync_pair(client, source_id, dest_id, progress):
-
-    source = await client.get_entity(source_id)
-    dest = await client.get_entity(dest_id)
+    try:
+        source = await client.get_entity(source_id)
+        dest = await client.get_entity(dest_id)
+    except Exception as e:
+        print(
+            f"Skipping pair {source_id} -> {dest_id}: {e}"
+        )
+        return
 
     source_key = str(source_id)
 
